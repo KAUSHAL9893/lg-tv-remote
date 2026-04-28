@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LG TV Remote</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    h1 { text-align: center; font-size: 1.2rem; margin-bottom: 12px; color: #a78bfa; }
+
+    /* ── CONNECTION PANEL ── */
+    #connect-panel {
+      background: #16213e;
+      border: 1px solid #334;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    #connect-panel h2 { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; }
+    .connect-row {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    #tv-ip {
+      flex: 1;
+      min-width: 140px;
+      background: #0f3460;
+      border: 1px solid #334;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 1rem;
+    }
+    button {
+      background: #6d28d9;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+    }
+    button:hover { background: #7c3aed; }
+    button:active { background: #5b21b6; transform: scale(0.97); }
+    button:disabled { background: #333; cursor: not-allowed; }
+
+    #status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    .badge-disconnected { background: #333; color: #aaa; }
+    .badge-connecting   { background: #92400e; color: #fde68a; }
+    .badge-connected    { background: #14532d; color: #86efac; }
+    .badge-error        { background: #7f1d1d; color: #fca5a5; }
+
+    #discover-list {
+      margin-top: 8px;
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .device-chip {
+      background: #0f3460;
+      border: 1px solid #446;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .device-chip:hover { background: #1a4a8a; }
+
+    /* ── REMOTE ── */
+    #remote {
+      display: none;
+      max-width: 340px;
+      margin: 0 auto;
+    }
+    #remote.visible { display: block; }
+
+    .section {
+      background: #16213e;
+      border: 1px solid #334;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    /* Button grid helpers */
+    .row { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; }
+    .row:last-child { margin-bottom: 0; }
+    .btn-wide { flex: 1; }
+
+    /* D-Pad */
+    .dpad {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap: 4px;
+      width: 180px;
+      margin: 0 auto;
+    }
+    .dpad button { padding: 12px 0; font-size: 1.1rem; }
+    .dpad-center { background: #1e1b4b !important; font-size: 0.8rem !important; }
+
+    /* Volume / Channel */
+    .vc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .vc-col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    .vc-col span { font-size: 0.7rem; color: #888; }
+    .vc-col button { width: 100%; padding: 10px; font-size: 1rem; }
+
+    /* Apps */
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .app-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 8px 4px;
+      font-size: 0.65rem;
+      background: #0f3460;
+      border-radius: 8px;
+    }
+    .app-btn .icon { font-size: 1.4rem; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1b4b;
+      border: 1px solid #4c1d95;
+      color: #c4b5fd;
+      padding: 8px 20px;
+      border-radius: 99px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Inputs panel */
+    #inputs-list {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+    }
+    .input-chip {
+      background: #0f3460;
+      border: 1px solid #446;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .input-chip:hover { background: #1a4a8a; }
+  </style>
+</head>
+<body>
+  <h1>📺 LG TV Remote</h1>
+
+  <!-- CONNECTION PANEL -->
+  <div id="connect-panel">
+    <h2>
+      Connect to TV
+      <span id="status-badge" class="badge-disconnected">Disconnected</span>
+    </h2>
+    <div class="connect-row">
+      <input id="tv-ip" type="text" placeholder="TV IP (e.g. 192.168.1.10)" />
+      <button onclick="connectTV()">Connect</button>
+      <button onclick="discoverTVs()" style="background:#0f3460;">Scan</button>
+    </div>
+    <div id="discover-list"></div>
+  </div>
+
+  <!-- REMOTE CONTROL (shown after connect) -->
+  <div id="remote">
+
+    <!-- POWER + BASIC -->
+    <div class="section">
+      <div class="section-title">Power & System</div>
+      <div class="row">
+        <button class="btn-wide" onclick="cmd('/api/power/off')" style="background:#7f1d1d;">⏻ Power Off</button>
+        <button class="btn-wide" onclick="cmd('/api/button/home')">🏠 Home</button>
+        <button class="btn-wide" onclick="cmd('/api/button/back')">← Back</button>
+      </div>
+      <div class="row">
+        <button class="btn-wide" onclick="cmd('/api/button/menu')">☰ Menu</button>
+        <button class="btn-wide" onclick="cmd('/api/button/info')">ℹ Info</button>
+        <button class="btn-wide" onclick="cmd('/api/button/exit')">✕ Exit</button>
+      </div>
+    </div>
+
+    <!-- VOLUME + CHANNEL -->
+    <div class="section">
+      <div class="section-title">Volume & Channel</div>
+      <div class="vc-grid">
+        <div class="vc-col">
+          <span>VOLUME</span>
+          <button onclick="cmd('/api/volume/up')">🔊 Vol +</button>
+          <button onclick="cmd('/api/volume/mute')" style="background:#374151;">🔇 Mute</button>
+          <button onclick="cmd('/api/volume/down')">🔉 Vol -</button>
+        </div>
+        <div class="vc-col">
+          <span>CHANNEL</span>
+          <button onclick="cmd('/api/channel/up')">▲ Ch +</button>
+          <button onclick="loadInputs()" style="background:#374151;">📡 Input</button>
+          <button onclick="cmd('/api/channel/down')">▼ Ch -</button>
+        </div>
+      </div>
+      <div id="inputs-list"></div>
+    </div>
+
+    <!-- D-PAD NAVIGATION -->
+    <div class="section">
+      <div class="section-title">Navigation</div>
+      <div class="dpad">
+        <div></div>
+        <button onclick="cmd('/api/button/up')">▲</button>
+        <div></div>
+        <button onclick="cmd('/api/button/left')">◀</button>
+        <button class="dpad-center" onclick="cmd('/api/button/ok')">OK</button>
+        <button onclick="cmd('/api/button/right')">▶</button>
+        <div></div>
+        <button onclick="cmd('/api/button/down')">▼</button>
+        <div></div>
+      </div>
+    </div>
+
+    <!-- MEDIA CONTROLS -->
+    <div class="section">
+      <div class="section-title">Media Playback</div>
+      <div class="row">
+        <button class="btn-wide" onclick="cmd('/api/button/rewind')">⏪</button>
+        <button class="btn-wide" onclick="cmd('/api/media/play')">▶ Play</button>
+        <button class="btn-wide" onclick="cmd('/api/media/pause')">⏸ Pause</button>
+        <button class="btn-wide" onclick="cmd('/api/button/forward')">⏩</button>
+      </div>
+      <div class="row">
+        <button class="btn-wide" onclick="cmd('/api/media/stop')">⏹ Stop</button>
+      </div>
+    </div>
+
+    <!-- COLOUR BUTTONS -->
+    <div class="section">
+      <div class="section-title">Colour Buttons</div>
+      <div class="row">
+        <button class="btn-wide" onclick="cmd('/api/button/red')"    style="background:#dc2626;">● Red</button>
+        <button class="btn-wide" onclick="cmd('/api/button/green')"  style="background:#16a34a;">● Green</button>
+        <button class="btn-wide" onclick="cmd('/api/button/yellow')" style="background:#ca8a04;">● Yellow</button>
+        <button class="btn-wide" onclick="cmd('/api/button/blue')"   style="background:#1d4ed8;">● Blue</button>
+      </div>
+    </div>
+
+    <!-- APPS -->
+    <div class="section">
+      <div class="section-title">Apps</div>
+      <div class="apps-grid" id="apps-grid">Loading...</div>
+    </div>
+
+    <!-- DISCONNECT -->
+    <div style="text-align:center; margin-top: 8px;">
+      <button onclick="disconnect()" style="background:#374151; font-size:0.8rem; padding:6px 16px;">
+        Disconnect
+      </button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+  // ── WebSocket for real-time status ──
+  const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${wsProto}://${location.host}`);
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'status')    handleStatus(data);
+    if (data.type === 'discovery') handleDiscovery(data.device);
+    if (data.type === 'discovery_start') {
+      document.getElementById('discover-list').innerHTML = '<span style="font-size:0.8rem;color:#888">Scanning...</span>';
+    }
+  };
+
+  function handleStatus({ status, ip, message }) {
+    const badge = document.getElementById('status-badge');
+    const remote = document.getElementById('remote');
+    badge.className = 'badge-' + status;
+    if (status === 'connected') {
+      badge.textContent = `Connected (${ip})`;
+      remote.classList.add('visible');
+      loadApps();
+      toast('✅ Connected to TV!');
+    } else if (status === 'connecting') {
+      badge.textContent = 'Connecting...';
+    } else if (status === 'disconnected') {
+      badge.textContent = 'Disconnected';
+      remote.classList.remove('visible');
+    } else if (status === 'error') {
+      badge.textContent = 'Error';
+      toast('❌ ' + (message || 'Connection failed'));
+    }
+  }
+
+  function handleDiscovery(device) {
+    const list = document.getElementById('discover-list');
+    // Remove "scanning..." text
+    if (list.querySelector('span')) list.innerHTML = '';
+    const chip = document.createElement('div');
+    chip.className = 'device-chip';
+    chip.textContent = device.ip;
+    chip.title = device.server;
+    chip.onclick = () => {
+      document.getElementById('tv-ip').value = device.ip;
+      connectTV();
+    };
+    list.appendChild(chip);
+  }
+
+  // ── API helpers ──
+  async function cmd(endpoint, method = 'POST', body = null) {
+    try {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(endpoint, opts);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast('⚠ ' + (data.error || 'Command failed'));
+      }
+      return data;
+    } catch (e) {
+      toast('❌ Network error');
+    }
+  }
+
+  async function connectTV() {
+    const ip = document.getElementById('tv-ip').value.trim();
+    if (!ip) { toast('Enter TV IP address'); return; }
+    toast('Connecting... Accept pairing on TV if prompted');
+    await cmd('/api/connect', 'POST', { ip });
+  }
+
+  async function discoverTVs() {
+    toast('🔍 Scanning network...');
+    await cmd('/api/discover', 'GET');
+  }
+
+  async function disconnect() {
+    await cmd('/api/disconnect', 'POST');
+  }
+
+  async function loadApps() {
+    const grid = document.getElementById('apps-grid');
+    const res = await cmd('/api/apps/common', 'GET');
+    if (!res || !res.length) { grid.textContent = 'N/A'; return; }
+    grid.innerHTML = res.map(app => `
+      <button class="app-btn" onclick="launchApp('${app.id}')">
+        <span class="icon">${app.icon}</span>
+        ${app.name}
+      </button>
+    `).join('');
+  }
+
+  async function launchApp(appId) {
+    toast('Launching...');
+    await cmd('/api/app/launch', 'POST', { appId });
+  }
+
+  async function loadInputs() {
+    const list = document.getElementById('inputs-list');
+    list.innerHTML = '<span style="font-size:0.8rem;color:#888">Loading...</span>';
+    const res = await cmd('/api/inputs', 'GET');
+    if (!res || !res.devices) { list.innerHTML = ''; return; }
+    list.innerHTML = res.devices.map(d => `
+      <div class="input-chip" onclick="switchInput('${d.id}')">
+        ${d.label || d.id}
+      </div>
+    `).join('');
+  }
+
+  async function switchInput(inputId) {
+    toast('Switching input...');
+    await cmd('/api/input/switch', 'POST', { inputId });
+  }
+
+  // ── Toast ──
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  // ── Check initial status ──
+  fetch('/api/status').then(r => r.json()).then(data => {
+    if (data.connected) {
+      handleStatus({ status: 'connected', ip: data.ip });
+    }
+  });
+</script>
+</body>
+</html>

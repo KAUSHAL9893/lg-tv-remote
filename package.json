@@ -1,0 +1,21 @@
+{
+  "name": "lg-tv-remote",
+  "version": "1.0.0",
+  "description": "WiFi-based LG Smart TV Remote Control",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "lgtv2": "^1.1.3",
+    "node-ssdp": "^4.0.1",
+    "ws": "^8.14.2",
+    "cors": "^2.8.5",
+    "ip": "^1.1.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
